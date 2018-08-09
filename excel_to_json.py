@@ -9,42 +9,58 @@ from collections import OrderedDict
 
 
 
+
 file_url = 'https://www.iso20022.org/sites/default/files/ISO10383_MIC/ISO10383_MIC.xls'
 AWS_BUCKET_NAME = 'steel-eye'
-
+sheet = 'MICs List by CC'
 return_val = {
     "statusCode": 200,
     "headers": { "Content-Type": "application/json"}}
 
+debug = False
 rows_list = []
+
 def get_xls(event):
-    file_url_param = event.get('queryStringParameters', {}).get("file_url")
-    url = file_url_param if file_url_param else file_url
+    # Snippet to make make excel source and sheet name to be fetched changable
+
+    # file_url_param = event.get('queryStringParameters', {}).get("file_url")
+    # url = file_url_param if file_url_param else file_url
     
-    sheet_name_param = event.get('queryStringParameters', {}).get("sheet_name")
-    sheet_name = sheet_name_param if sheet_name_param else 'MICs List by CC'
+    # url_params = event.get('queryStringParameters', None)
+    # if url_params:
+    #     sheet_name = url_params.get("sheet_name", None)
+    # else:
+    #     sheet_name = sheet
+        
+    # sheet_name = sheet_name_param if sheet_name_param else 'MICs List by CC'
+
+    # if file_url != url and not sheet_name_param: # if a different file url is present without sheetname, fetch first sheet.
+    #     worksheet = workbook.sheet_by_index(0) 
+    #     sheet_name = 'first_sheet'
+
+    url = file_url
+    sheet_name = sheet
 
     r = requests.get(url)  # make an HTTP request
     try:
         workbook = xlrd.open_workbook(file_contents=r.content)  # open workbook
     except xlrd.biffh.XLRDError as e:
-        return None, None, (str(e) + "\nThere is error with file destination or file format")
+        return None, None, (str(e) + " There is error with file destination or file format") 
+        # Handling error when file source and sheet_name are sent through query params to API.
 
-    # if file_url != url and not sheet_name_param: # if a different file url is present without sheetname, fetch first sheet.
-    #     worksheet = workbook.sheet_by_index(0) 
-    #     sheet_name = 'first_sheet'
-    # else:
+    
     try:
-        worksheet = workbook.sheet_by_name(sheet_name)  # else get sheet by name provided.
+        worksheet = workbook.sheet_by_name(sheet_name)  #  get sheet by name.
     except xlrd.biffh.XLRDError as e:
         return None, None, (str(e) + " Missing sheet_name value from url or sheet with name <{}> dont exist in Excel file".format(sheet_name))
 
+
     headers = worksheet.row_values(0)
-    for rowindex in range(1, worksheet.nrows):
-        row_data = worksheet.row_values(rowindex)
+    for rowindex in range(1, worksheet.nrows): 
+        row_data = worksheet.row_values(rowindex) 
         row_dict = OrderedDict()
         for index in range(len(headers)):
-            row_dict[headers[index]] = row_data[index]
+            row_dict[headers[index]] = row_data[index] 
         rows_list.append(row_dict)
     return rows_list, sheet_name, None
 
@@ -57,15 +73,15 @@ def handler(event, context):
     json_data = json.dumps(row_lists, indent=4).encode('UTF-8')  
     s3 = boto3.resource('s3')
     bucket = s3.Bucket(AWS_BUCKET_NAME)
-    path = sheet_name.replace(' ','_').lower() + '.json'
+    path = sheet_name.replace(' ','_').lower() + '.json' # filename for JSON to store in S3
     bucket.put_object(
         ACL='public-read',
         ContentType='application/json',
         Key=path,
         Body=bytes(json_data),
     )
-
     s3Client = boto3.client('s3')
+
     # Generation of presigned url in case of private s3 bucket
     # preSignedUrl = s3Client.generate_presigned_url('get_object', Params = {'Bucket': AWS_BUCKET_NAME, 'Key': path}, ExpiresIn = 0)
 
@@ -79,8 +95,10 @@ def handler(event, context):
     body = {
         "uploaded": "true",
         "object_url": object_url,
-        "event_dict": event
-
     }
+
+    if debug == True:
+        body.update({"event": event})
+
     return_val.update({"body": json.dumps(body)})
     return return_val
