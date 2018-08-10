@@ -21,7 +21,7 @@ debug = False
 rows_list = []
 
 def get_xls(event):
-    # Snippet to make make excel source and sheet name to be fetched changable
+    # Snippet to make make excel source and sheet name to be fetched changeable
 
     # file_url_param = event.get('queryStringParameters', {}).get("file_url")
     # url = file_url_param if file_url_param else file_url
@@ -32,8 +32,6 @@ def get_xls(event):
     # else:
     #     sheet_name = sheet
         
-    # sheet_name = sheet_name_param if sheet_name_param else 'MICs List by CC'
-
     # if file_url != url and not sheet_name_param: # if a different file url is present without sheetname, fetch first sheet.
     #     worksheet = workbook.sheet_by_index(0) 
     #     sheet_name = 'first_sheet'
